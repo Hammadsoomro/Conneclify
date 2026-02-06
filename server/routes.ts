@@ -113,13 +113,14 @@ function broadcastToUser(userId: string, data: any) {
 
 function broadcastToAdmin(adminId: string, data: any) {
   const message = JSON.stringify(data);
-  userClients.forEach((wsSet, userId) => {
-    wsSet.forEach((client) => {
+  const adminClients = userClients.get(adminId);
+  if (adminClients) {
+    adminClients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
       }
     });
-  });
+  }
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
