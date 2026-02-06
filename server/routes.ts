@@ -264,7 +264,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           isActive: user.isActive,
         });
       } catch (err) {
-        return done(err);
+        // Fallback to mock users in development when database is unavailable
+        if (process.env.NODE_ENV !== "production") {
+          const mockUser = mockUsers[username];
+          if (mockUser && password === mockUser.password) {
+            return done(null, mockUser.user);
+          }
+        }
+        console.error("Login auth error:", err);
+        return done(null, false, { message: "Authentication failed" });
       }
     })
   );
