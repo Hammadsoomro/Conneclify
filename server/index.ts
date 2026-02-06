@@ -15,6 +15,7 @@ declare module "http" {
   }
 }
 
+// Middleware to capture raw body (useful for Twilio signature verification etc.)
 app.use(
   express.json({
     verify: (req, _res, buf) => {
@@ -25,6 +26,7 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Logging helper
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -32,10 +34,10 @@ export function log(message: string, source = "express") {
     second: "2-digit",
     hour12: true,
   });
-
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+// Request/response logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -62,9 +64,11 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Register routes and seed database
   await registerRoutes(httpServer, app);
   await seedDatabase();
 
+  // Error handling middleware
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -78,6 +82,7 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
+  // Static serving in production, Vite dev server in development
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
@@ -85,16 +90,24 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  const port = parseInt(process.env.PORT || "5000", 10); // default 5000
+  // Cluster setup
+  const port = parseInt(process.env.PORT || "5000", 10);
   const numCPUs = os.cpus().length;
 
   if (cluster.isPrimary) {
     for (let i = 0; i < numCPUs; i++) {
       cluster.fork();
     }
-  } else {
+
     httpServer.listen(port, "0.0.0.0", () => {
-      log(`Worker ${process.pid} serving on port ${port}`);
+      log(`Master ${process.pid} listening on port ${port}`);
     });
+
+    cluster.on("exit", (worker) => {
+      log(`Worker ${worker.process.pid} died, restarting...`);
+      cluster.fork();
+    });
+  } else {
+    // Workers handle requests automatically via shared server socket
   }
 })();
