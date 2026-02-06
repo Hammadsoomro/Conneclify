@@ -1216,7 +1216,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const isFirstGateway = existingGateways.length === 0;
       
       // Encrypt credentials before storing
-      const encryptedCredentials = JSON.stringify(validated.credentials);
+      const encryptedCredentials = encryptCredentials(JSON.stringify(validated.credentials));
       
       const gateway = await storage.createSmsGateway({
         adminId: req.user.id,
