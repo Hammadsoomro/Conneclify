@@ -11,7 +11,6 @@ import crypto from "crypto";
 import { storage } from "./storage";
 import { loginSchema, signupSchema, createTeamMemberSchema, sendMessageSchema, connectGatewaySchema, updateProfileSchema, changePasswordSchema, type SmsProvider } from "@shared/schema";
 import { z } from "zod";
-import * as signalwire from "./signalwire";
 import { createSmsProvider, NoGatewayProvider, type ISmsProvider } from "./sms-providers";
 import { encryptCredentials } from "./crypto";
 
