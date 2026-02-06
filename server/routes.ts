@@ -1479,6 +1479,39 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Status callback webhook - receives delivery status updates
   app.post("/api/webhooks/sms/status", async (req, res) => {
     try {
+      // Webhook signature verification
+      const rawBody = req.rawBody as Buffer | undefined;
+      if (!rawBody) {
+        return res.status(400).json({ message: "Missing request body" });
+      }
+
+      const twilioSignature = req.headers['x-twilio-signature'] as string;
+      if (twilioSignature) {
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        if (!authToken || !verifyTwilioSignature(
+          req.originalUrl,
+          rawBody.toString(),
+          twilioSignature,
+          authToken
+        )) {
+          console.error("Invalid Twilio webhook signature");
+          return res.status(401).json({ message: "Invalid signature" });
+        }
+      }
+
+      const signalWireSignature = req.headers['x-signalwire-signature'] as string;
+      if (signalWireSignature) {
+        const token = process.env.SIGNALWIRE_TOKEN;
+        if (!token || !verifySignalWireSignature(
+          rawBody.toString(),
+          signalWireSignature,
+          token
+        )) {
+          console.error("Invalid SignalWire webhook signature");
+          return res.status(401).json({ message: "Invalid signature" });
+        }
+      }
+
       console.log("Status webhook received:", JSON.stringify(req.body, null, 2));
       
       let providerMessageId: string;
