@@ -66,7 +66,11 @@ app.use((req, res, next) => {
 (async () => {
   // Register routes and seed database
   await registerRoutes(httpServer, app);
-  await seedDatabase();
+
+  // Try to seed database, but don't fail if it doesn't work
+  seedDatabase().catch((err) => {
+    console.error("Database seeding failed (continuing without seeded data):", err.message);
+  });
 
   // Error handling middleware
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
