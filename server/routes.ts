@@ -169,17 +169,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     throw new Error("SESSION_SECRET environment variable is required in production");
   }
 
-  // Use PostgreSQL session store
-  const PgSession = connectPgSimple(session);
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-  });
+  // Use in-memory store for development, PostgreSQL for production
+  let sessionStore: any;
+  let pool: Pool | null = null;
 
-  const sessionStore = new PgSession({
-    pool,
-    tableName: "user_sessions",
-    createTableIfMissing: true,
-  });
+  if (isProduction && process.env.DATABASE_URL) {
+    const PgSession = connectPgSimple(session);
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+    });
+
+    sessionStore = new PgSession({
+      pool,
+      tableName: "user_sessions",
+      createTableIfMissing: true,
+    });
+  } else {
+    // Use memory store for development
+    const MemStoreClass = MemoryStore(session);
+    sessionStore = new MemStoreClass();
+  }
 
   // Trust proxy in production for secure cookies
   if (isProduction) {
