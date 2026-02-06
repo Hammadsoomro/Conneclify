@@ -301,6 +301,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
         console.log("User logged in successfully:", user.id);
         console.log("Session ID:", req.sessionID);
+        console.log("Response headers before sending:", res.getHeaders());
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
         return res.json({ user });
       });
     })(req, res, next);
