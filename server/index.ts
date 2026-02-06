@@ -3,6 +3,8 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { seedDatabase } from "./seed";
+import cluster from "cluster";
+import os from "os";
 
 const app = express();
 const httpServer = createServer(app);
@@ -52,7 +54,6 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       log(logLine);
     }
   });
@@ -62,7 +63,6 @@ app.use((req, res, next) => {
 
 (async () => {
   await registerRoutes(httpServer, app);
-  
   await seedDatabase();
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -78,9 +78,6 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
@@ -88,19 +85,16 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
+  const port = parseInt(process.env.PORT || "5000", 10); // default 5000
+  const numCPUs = os.cpus().length;
+
+  if (cluster.isPrimary) {
+    for (let i = 0; i < numCPUs; i++) {
+      cluster.fork();
+    }
+  } else {
+    httpServer.listen(port, "0.0.0.0", () => {
+      log(`Worker ${process.pid} serving on port ${port}`);
+    });
+  }
 })();
