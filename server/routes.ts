@@ -1009,10 +1009,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             const provider = createSmsProvider(gateway);
             if (provider.isConfigured()) {
               try {
-                // Build status callback URL from request host
-                const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-                const host = req.headers['x-forwarded-host'] || req.headers.host;
-                const statusCallback = `${protocol}://${host}/api/webhooks/sms/status`;
+                // Use configured base URL instead of untrusted headers
+                const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'https://localhost:5000';
+                const statusCallback = `${publicBaseUrl}/api/webhooks/sms/status`;
                 
                 const smsResult = await provider.sendSms({
                   from: formatToE164(phoneNumber.number),
