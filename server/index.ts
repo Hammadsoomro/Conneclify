@@ -91,7 +91,7 @@ app.use((req, res, next) => {
   }
 
   // Cluster setup
-  const port = parseInt(process.env.PORT || "5000", 10);
+  const port = parseInt(process.env.PORT || "3000", 10);
   const numCPUs = os.cpus().length;
 
   if (cluster.isPrimary) {
