@@ -161,12 +161,11 @@ function verifySignalWireSignature(
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-  const isReplit = process.env.REPL_ID !== undefined;
   const isProduction = process.env.NODE_ENV === "production";
 
   const sessionSecret = process.env.SESSION_SECRET;
-  if (!sessionSecret && (isProduction || isReplit)) {
-    throw new Error("SESSION_SECRET environment variable is required");
+  if (!sessionSecret && isProduction) {
+    throw new Error("SESSION_SECRET environment variable is required in production");
   }
 
   // Use PostgreSQL session store
@@ -181,8 +180,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     createTableIfMissing: true,
   });
 
-  // Trust proxy in production and Replit for secure cookies behind reverse proxy
-  if (isProduction || isReplit) {
+  // Trust proxy in production for secure cookies
+  if (isProduction) {
     app.set("trust proxy", 1);
   }
 
