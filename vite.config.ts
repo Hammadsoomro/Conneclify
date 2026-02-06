@@ -36,5 +36,19 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+    hmr: process.env.REPL_ID
+      ? {
+          host: process.env.REPLIT_DOMAINS?.split(",")[0] || "localhost",
+          port: 443,
+          protocol: "wss",
+        }
+      : undefined,
   },
 });
