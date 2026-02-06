@@ -215,6 +215,32 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Mock users for development (when database is not available)
+  const mockUsers: Record<string, { password: string; user: any }> = {
+    admin: {
+      password: "admin123",
+      user: {
+        id: "mock-admin-1",
+        username: "admin",
+        email: "admin@conneclify.com",
+        fullName: "John Administrator",
+        role: "admin",
+        isActive: true,
+      }
+    },
+    sarah: {
+      password: "team123",
+      user: {
+        id: "mock-team-1",
+        username: "sarah.wilson",
+        email: "sarah@conneclify.com",
+        fullName: "Sarah Wilson",
+        role: "team_member",
+        isActive: true,
+      }
+    }
+  };
+
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
