@@ -33,12 +33,5 @@ export default defineConfig({
         ws: true,
       },
     },
-    hmr: process.env.REPL_ID
-      ? {
-          host: process.env.REPLIT_DOMAINS?.split(",")[0] || "localhost",
-          port: 443,
-          protocol: "wss",
-        }
-      : undefined,
   },
 });
