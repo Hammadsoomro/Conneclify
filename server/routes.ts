@@ -7,6 +7,7 @@ import { Pool } from "pg";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { storage } from "./storage";
 import { loginSchema, signupSchema, createTeamMemberSchema, sendMessageSchema, connectGatewaySchema, updateProfileSchema, changePasswordSchema, type SmsProvider } from "@shared/schema";
 import { z } from "zod";
