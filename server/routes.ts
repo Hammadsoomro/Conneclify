@@ -255,6 +255,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+    console.log("Auth check:", {
+      isAuthenticated: req.isAuthenticated(),
+      sessionID: req.sessionID,
+      userId: req.user?.id,
+      hasUser: !!req.user,
+    });
     if (req.isAuthenticated()) {
       return next();
     }
