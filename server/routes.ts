@@ -202,6 +202,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   
   app.use(sessionMiddleware);
 
+  // Log cookies being set
+  app.use((req, res, next) => {
+    const originalJson = res.json;
+    res.json = function(data) {
+      const cookies = res.getHeader("set-cookie");
+      if (cookies) {
+        console.log("Setting cookies:", cookies);
+      }
+      return originalJson.call(this, data);
+    };
+    next();
+  });
+
   app.use(passport.initialize());
   app.use(passport.session());
 
