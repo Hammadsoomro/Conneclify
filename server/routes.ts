@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import MemoryStore from "memorystore";
 import { Pool } from "pg";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
