@@ -183,7 +183,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     });
   } else {
     // Development: Use in-memory store (simplest for testing)
-    const MemoryStore = require("memorystore")(session);
+    const MemoryStore = memoryStore(session);
     sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24 hours
     });
