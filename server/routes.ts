@@ -299,7 +299,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
         console.log("User logged in successfully:", user.id);
         console.log("Session ID:", req.sessionID);
-        return res.json({ user });
+        console.log("Session user:", req.user);
+        console.log("Is authenticated:", req.isAuthenticated());
+        console.log("Response headers:", res.getHeaders());
+        // Explicitly save the session
+        req.session.save((err) => {
+          if (err) {
+            console.error("Session save error:", err);
+            return next(err);
+          }
+          console.log("Session saved successfully");
+          return res.json({ user });
+        });
       });
     })(req, res, next);
   });
