@@ -189,7 +189,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     store: sessionStore,
     secret: sessionSecret || "conneclify-dev-secret-key-2024",
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true,
     cookie: {
       secure: isProduction,
       httpOnly: true,
