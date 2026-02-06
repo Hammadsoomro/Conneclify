@@ -124,6 +124,42 @@ function broadcastToAdmin(adminId: string, data: any) {
   }
 }
 
+// Webhook signature verification functions
+function verifyTwilioSignature(
+  requestUrl: string,
+  body: string,
+  signature: string,
+  authToken: string
+): boolean {
+  try {
+    const hash = crypto
+      .createHmac("sha1", authToken)
+      .update(requestUrl + body)
+      .digest("Base64");
+    return hash === signature;
+  } catch (err) {
+    console.error("Twilio signature verification error:", err);
+    return false;
+  }
+}
+
+function verifySignalWireSignature(
+  body: string,
+  signature: string,
+  token: string
+): boolean {
+  try {
+    const hash = crypto
+      .createHmac("sha256", token)
+      .update(body)
+      .digest("hex");
+    return hash === signature;
+  } catch (err) {
+    console.error("SignalWire signature verification error:", err);
+    return false;
+  }
+}
+
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   const sessionSecret = process.env.SESSION_SECRET;
   if (!sessionSecret && process.env.NODE_ENV === "production") {
