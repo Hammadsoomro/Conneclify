@@ -279,15 +279,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
       if (err) {
+        console.error("Login auth error:", err);
         return next(err);
       }
       if (!user) {
         return res.status(401).json({ message: info?.message || "Login failed" });
       }
-      req.logIn(user, (err) => {
-        if (err) {
-          return next(err);
+      req.logIn(user, (loginErr) => {
+        if (loginErr) {
+          console.error("Login error:", loginErr);
+          return next(loginErr);
         }
+        console.log("User logged in successfully:", user.id);
+        console.log("Session ID:", req.sessionID);
         return res.json({ user });
       });
     })(req, res, next);
