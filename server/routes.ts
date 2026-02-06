@@ -278,24 +278,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   );
 
   passport.serializeUser((user: Express.User, done) => {
-    done(null, user.id);
+    done(null, JSON.stringify(user));
   });
 
-  passport.deserializeUser(async (id: string, done) => {
+  passport.deserializeUser((userData: string, done) => {
     try {
-      const user = await storage.getUser(id);
-      if (user) {
-        done(null, {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          fullName: user.fullName,
-          role: user.role,
-          isActive: user.isActive,
-        });
-      } else {
-        done(null, false);
-      }
+      const user = JSON.parse(userData);
+      done(null, user);
     } catch (err) {
       done(err);
     }
