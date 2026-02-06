@@ -696,12 +696,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/signalwire/status", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const configured = signalwire.isConfigured();
-      const { projectId, spaceUrl } = signalwire.getConfig();
+      // Check if admin has any active SignalWire gateway
+      const gateways = await storage.getSmsGateways(req.user!.id);
+      const signalwireGateway = gateways.find(g => g.provider === "signalwire" && g.isActive);
+
       res.json({
-        configured,
-        projectId: configured ? projectId : undefined,
-        spaceUrl: configured ? spaceUrl : undefined,
+        configured: !!signalwireGateway,
+        projectId: signalwireGateway ? "(configured via gateway)" : undefined,
+        spaceUrl: signalwireGateway ? "(configured via gateway)" : undefined,
       });
     } catch (err) {
       console.error("SignalWire status error:", err);
