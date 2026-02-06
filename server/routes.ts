@@ -191,12 +191,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     secret: sessionSecret || "conneclify-dev-secret-key-2024",
     resave: false,
     saveUninitialized: true,
-    proxy: isReplit,
+    proxy: isReplit || isProduction,
     cookie: {
-      secure: isProduction || isReplit,
+      secure: isProduction, // Only HTTPS in production, not in Replit dev
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: isReplit || isProduction ? "none" : "lax",
+      sameSite: isProduction ? "strict" : (isReplit ? "none" : "lax"),
     },
   });
   
