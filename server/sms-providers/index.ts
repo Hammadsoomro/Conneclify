@@ -3,6 +3,7 @@ import { TwilioProvider } from "./twilio-provider";
 import { SignalWireProvider } from "./signalwire-provider";
 import { TelnyxProvider } from "./telnyx-provider";
 import type { SmsGateway } from "@shared/schema";
+import { decryptCredentials } from "../crypto";
 
 export type { ISmsProvider, SmsProviderConfig, AvailableNumber, OwnedNumber, PurchasedNumber, SendSmsParams, SmsResult, SearchNumbersParams } from "./types";
 
