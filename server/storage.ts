@@ -16,7 +16,7 @@ import {
   type InsertSmsGateway,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, ilike } from "drizzle-orm";
+import { eq, desc, and, sql, ilike, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -178,14 +178,12 @@ export class DatabaseStorage implements IStorage {
     // Get all phone numbers for this gateway
     const nums = await db.select({ id: phoneNumbers.id }).from(phoneNumbers).where(eq(phoneNumbers.gatewayId, gatewayId));
     const phoneNumberIds = nums.map(n => n.id);
-    
+
     if (phoneNumberIds.length > 0) {
-      // Set phoneNumberId to null for all conversations referencing these phone numbers
-      for (const phoneId of phoneNumberIds) {
-        await db.update(conversations)
-          .set({ phoneNumberId: null })
-          .where(eq(conversations.phoneNumberId, phoneId));
-      }
+      // Set phoneNumberId to null for all conversations referencing these phone numbers (single query)
+      await db.update(conversations)
+        .set({ phoneNumberId: null })
+        .where(inArray(conversations.phoneNumberId, phoneNumberIds));
     }
   }
 

@@ -7,11 +7,13 @@ import { Pool } from "pg";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
+import memoryStore from "memorystore";
 import { storage } from "./storage";
 import { loginSchema, signupSchema, createTeamMemberSchema, sendMessageSchema, connectGatewaySchema, updateProfileSchema, changePasswordSchema, type SmsProvider } from "@shared/schema";
 import { z } from "zod";
-import * as signalwire from "./signalwire";
 import { createSmsProvider, NoGatewayProvider, type ISmsProvider } from "./sms-providers";
+import { encryptCredentials } from "./crypto";
 
 function formatToE164(phone: string): string {
   const digits = phone.replace(/\D/g, "");
@@ -113,13 +115,50 @@ function broadcastToUser(userId: string, data: any) {
 
 function broadcastToAdmin(adminId: string, data: any) {
   const message = JSON.stringify(data);
-  userClients.forEach((wsSet, userId) => {
-    wsSet.forEach((client) => {
+  const adminClients = userClients.get(adminId);
+  if (adminClients) {
+    adminClients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
       }
     });
-  });
+  }
+}
+
+// Webhook signature verification functions
+function verifyTwilioSignature(
+  requestUrl: string,
+  body: string,
+  signature: string,
+  authToken: string
+): boolean {
+  try {
+    const hash = crypto
+      .createHmac("sha1", authToken)
+      .update(requestUrl + body)
+      .digest("Base64");
+    return hash === signature;
+  } catch (err) {
+    console.error("Twilio signature verification error:", err);
+    return false;
+  }
+}
+
+function verifySignalWireSignature(
+  body: string,
+  signature: string,
+  token: string
+): boolean {
+  try {
+    const hash = crypto
+      .createHmac("sha256", token)
+      .update(body)
+      .digest("hex");
+    return hash === signature;
+  } catch (err) {
+    console.error("SignalWire signature verification error:", err);
+    return false;
+  }
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
@@ -128,11 +167,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     throw new Error("SESSION_SECRET environment variable is required in production");
   }
 
-  // Use PostgreSQL session store for production
-  const PgSession = connectPgSimple(session);
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-  });
+  // Use in-memory store for development, PostgreSQL for production
+  let sessionStore: any;
+
+  if (process.env.NODE_ENV === "production") {
+    // Production: Use PostgreSQL session store
+    const PgSession = connectPgSimple(session);
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+    });
+    sessionStore = new PgSession({
+      pool,
+      tableName: "user_sessions",
+      createTableIfMissing: true,
+    });
+  } else {
+    // Development: Use in-memory store (simplest for testing)
+    const MemoryStore = memoryStore(session);
+    sessionStore = new MemoryStore({
+      checkPeriod: 86400000, // 24 hours
+    });
+  }
 
   // Trust proxy in production for secure cookies behind reverse proxy
   if (process.env.NODE_ENV === "production") {
@@ -140,11 +195,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   }
 
   const sessionMiddleware = session({
-    store: new PgSession({
-      pool,
-      tableName: "user_sessions",
-      createTableIfMissing: true,
-    }),
+    store: sessionStore,
     secret: sessionSecret || "conneclify-dev-secret-key-2024",
     resave: false,
     saveUninitialized: false,
@@ -536,12 +587,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (user.role === "admin") {
         return res.status(403).json({ message: "Cannot reset admin password" });
       }
-      
+
       const bcrypt = await import("bcrypt");
-      const hashedPassword = await bcrypt.hash("password123", 10);
+      const { randomBytes } = await import("crypto");
+      const randomPassword = randomBytes(16).toString('hex');
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
       await storage.updateUser(id, { password: hashedPassword });
-      
-      res.json({ message: "Password reset successfully" });
+
+      res.json({
+        message: "Password reset successfully",
+        temporaryPassword: randomPassword,
+        note: "User should change this password on next login"
+      });
     } catch (err) {
       console.error("Reset password error:", err);
       res.status(500).json({ message: "Failed to reset password" });
@@ -652,12 +709,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/signalwire/status", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const configured = signalwire.isConfigured();
-      const { projectId, spaceUrl } = signalwire.getConfig();
+      // Check if admin has any active SignalWire gateway
+      const gateways = await storage.getSmsGateways(req.user!.id);
+      const signalwireGateway = gateways.find(g => g.provider === "signalwire" && g.isActive);
+
       res.json({
-        configured,
-        projectId: configured ? projectId : undefined,
-        spaceUrl: configured ? spaceUrl : undefined,
+        configured: !!signalwireGateway,
+        projectId: signalwireGateway ? "(configured via gateway)" : undefined,
+        spaceUrl: signalwireGateway ? "(configured via gateway)" : undefined,
       });
     } catch (err) {
       console.error("SignalWire status error:", err);
@@ -1002,10 +1061,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             const provider = createSmsProvider(gateway);
             if (provider.isConfigured()) {
               try {
-                // Build status callback URL from request host
-                const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-                const host = req.headers['x-forwarded-host'] || req.headers.host;
-                const statusCallback = `${protocol}://${host}/api/webhooks/sms/status`;
+                // Use configured base URL instead of untrusted headers
+                const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'https://localhost:5000';
+                const statusCallback = `${publicBaseUrl}/api/webhooks/sms/status`;
                 
                 const smsResult = await provider.sendSms({
                   from: formatToE164(phoneNumber.number),
@@ -1172,7 +1230,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const isFirstGateway = existingGateways.length === 0;
       
       // Encrypt credentials before storing
-      const encryptedCredentials = JSON.stringify(validated.credentials);
+      const encryptedCredentials = encryptCredentials(JSON.stringify(validated.credentials));
       
       const gateway = await storage.createSmsGateway({
         adminId: req.user.id,
@@ -1286,6 +1344,39 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Inbound SMS webhook - receives incoming messages
   app.post("/api/webhooks/sms/inbound", async (req, res) => {
     try {
+      // Webhook signature verification
+      const rawBody = req.rawBody as Buffer | undefined;
+      if (!rawBody) {
+        return res.status(400).json({ message: "Missing request body" });
+      }
+
+      const twilioSignature = req.headers['x-twilio-signature'] as string;
+      if (twilioSignature) {
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        if (!authToken || !verifyTwilioSignature(
+          req.originalUrl,
+          rawBody.toString(),
+          twilioSignature,
+          authToken
+        )) {
+          console.error("Invalid Twilio webhook signature");
+          return res.status(401).json({ message: "Invalid signature" });
+        }
+      }
+
+      const signalWireSignature = req.headers['x-signalwire-signature'] as string;
+      if (signalWireSignature) {
+        const token = process.env.SIGNALWIRE_TOKEN;
+        if (!token || !verifySignalWireSignature(
+          rawBody.toString(),
+          signalWireSignature,
+          token
+        )) {
+          console.error("Invalid SignalWire webhook signature");
+          return res.status(401).json({ message: "Invalid signature" });
+        }
+      }
+
       console.log("Inbound SMS webhook received:", JSON.stringify(req.body, null, 2));
       
       // Determine provider from request format
@@ -1403,6 +1494,39 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Status callback webhook - receives delivery status updates
   app.post("/api/webhooks/sms/status", async (req, res) => {
     try {
+      // Webhook signature verification
+      const rawBody = req.rawBody as Buffer | undefined;
+      if (!rawBody) {
+        return res.status(400).json({ message: "Missing request body" });
+      }
+
+      const twilioSignature = req.headers['x-twilio-signature'] as string;
+      if (twilioSignature) {
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        if (!authToken || !verifyTwilioSignature(
+          req.originalUrl,
+          rawBody.toString(),
+          twilioSignature,
+          authToken
+        )) {
+          console.error("Invalid Twilio webhook signature");
+          return res.status(401).json({ message: "Invalid signature" });
+        }
+      }
+
+      const signalWireSignature = req.headers['x-signalwire-signature'] as string;
+      if (signalWireSignature) {
+        const token = process.env.SIGNALWIRE_TOKEN;
+        if (!token || !verifySignalWireSignature(
+          rawBody.toString(),
+          signalWireSignature,
+          token
+        )) {
+          console.error("Invalid SignalWire webhook signature");
+          return res.status(401).json({ message: "Invalid signature" });
+        }
+      }
+
       console.log("Status webhook received:", JSON.stringify(req.body, null, 2));
       
       let providerMessageId: string;

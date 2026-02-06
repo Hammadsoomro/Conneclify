@@ -46,10 +46,26 @@ export async function seedDatabase() {
       createdBy: admin.id,
     });
 
+    // Create SMS gateway for the admin
+    const gateway = await storage.createSmsGateway({
+      adminId: admin.id,
+      provider: "signalwire",
+      name: "Demo SignalWire Gateway",
+      credentials: JSON.stringify({
+        projectId: "demo-project-id",
+        spaceUrl: "demo.signalwire.com",
+        token: "demo-token"
+      }),
+      isActive: true,
+    });
+
     const phone1 = await storage.createPhoneNumber({
       number: "+14155551234",
       friendlyName: "Main Support Line",
-      signalwireId: "sw_main_001",
+      providerId: "sw_main_001",
+      provider: "signalwire",
+      adminId: admin.id,
+      gatewayId: gateway.id,
       capabilities: ["sms", "voice", "mms"],
       isActive: true,
       monthlyRate: "$1.00",
@@ -58,7 +74,10 @@ export async function seedDatabase() {
     const phone2 = await storage.createPhoneNumber({
       number: "+12125559876",
       friendlyName: "Sales Line",
-      signalwireId: "sw_sales_001",
+      providerId: "sw_sales_001",
+      provider: "signalwire",
+      adminId: admin.id,
+      gatewayId: gateway.id,
       capabilities: ["sms", "voice"],
       isActive: true,
       monthlyRate: "$1.00",

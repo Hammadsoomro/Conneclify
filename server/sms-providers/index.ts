@@ -3,18 +3,35 @@ import { TwilioProvider } from "./twilio-provider";
 import { SignalWireProvider } from "./signalwire-provider";
 import { TelnyxProvider } from "./telnyx-provider";
 import type { SmsGateway } from "@shared/schema";
+import { decryptCredentials } from "../crypto";
 
 export type { ISmsProvider, SmsProviderConfig, AvailableNumber, OwnedNumber, PurchasedNumber, SendSmsParams, SmsResult, SearchNumbersParams } from "./types";
 
 export function createSmsProvider(gateway: SmsGateway): ISmsProvider {
   let credentials: Record<string, string>;
-  
+
   try {
     if (typeof gateway.credentials === "string") {
       if (!gateway.credentials || gateway.credentials.trim() === "") {
         throw new Error("Empty credentials");
       }
-      credentials = JSON.parse(gateway.credentials);
+
+      // Try to decrypt if it looks like encrypted JSON, otherwise parse as plain JSON
+      let credentialsString = gateway.credentials;
+      try {
+        const parsed = JSON.parse(credentialsString);
+        if (parsed.iv && parsed.data && parsed.tag) {
+          // It's encrypted, decrypt it
+          credentialsString = decryptCredentials(credentialsString);
+        }
+      } catch (e) {
+        // Not encrypted or invalid, try parsing as plain JSON
+        if (!credentialsString.startsWith('{')) {
+          throw e;
+        }
+      }
+
+      credentials = JSON.parse(credentialsString);
     } else if (gateway.credentials && typeof gateway.credentials === "object") {
       credentials = gateway.credentials as Record<string, string>;
     } else {
