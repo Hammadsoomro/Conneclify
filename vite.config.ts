@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import viteConfig from "../vite.config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -37,3 +37,4 @@ export default defineConfig({
     },
   },
 });
+
