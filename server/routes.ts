@@ -135,7 +135,7 @@ function verifyTwilioSignature(
     const hash = crypto
       .createHmac("sha1", authToken)
       .update(requestUrl + body)
-      .digest("Base64");
+      .digest("base64");
     return hash === signature;
   } catch (err) {
     console.error("Twilio signature verification error:", err);
