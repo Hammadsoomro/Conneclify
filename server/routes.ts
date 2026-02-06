@@ -354,26 +354,47 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const data = signupSchema.parse(req.body);
 
-      const existingUsername = await storage.getUserByUsername(data.username);
-      if (existingUsername) {
-        return res.status(400).json({ message: "Username already exists" });
+      let user: any;
+      let isUsingMockData = false;
+
+      try {
+        const existingUsername = await storage.getUserByUsername(data.username);
+        if (existingUsername) {
+          return res.status(400).json({ message: "Username already exists" });
+        }
+
+        const existingEmail = await storage.getUserByEmail(data.email);
+        if (existingEmail) {
+          return res.status(400).json({ message: "Email already exists" });
+        }
+
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+
+        user = await storage.createUser({
+          username: data.username,
+          email: data.email,
+          fullName: data.fullName,
+          password: hashedPassword,
+          role: "admin",
+          isActive: true,
+        });
+      } catch (dbErr) {
+        // Fallback to mock user in development when database is unavailable
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("Database unavailable, creating mock user for development");
+          isUsingMockData = true;
+          user = {
+            id: `mock-${Date.now()}`,
+            username: data.username,
+            email: data.email,
+            fullName: data.fullName,
+            role: "admin",
+            isActive: true,
+          };
+        } else {
+          throw dbErr;
+        }
       }
-
-      const existingEmail = await storage.getUserByEmail(data.email);
-      if (existingEmail) {
-        return res.status(400).json({ message: "Email already exists" });
-      }
-
-      const hashedPassword = await bcrypt.hash(data.password, 10);
-
-      const user = await storage.createUser({
-        username: data.username,
-        email: data.email,
-        fullName: data.fullName,
-        password: hashedPassword,
-        role: "admin",
-        isActive: true,
-      });
 
       const sessionUser = {
         id: user.id,
@@ -387,6 +408,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       req.logIn(sessionUser, (err) => {
         if (err) {
           return res.status(500).json({ message: "Login failed after signup" });
+        }
+        if (isUsingMockData) {
+          return res.json({
+            user: sessionUser,
+            warning: "Using mock data - database not available"
+          });
         }
         return res.json({ user: sessionUser });
       });
