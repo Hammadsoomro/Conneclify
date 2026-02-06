@@ -13,6 +13,7 @@ import { loginSchema, signupSchema, createTeamMemberSchema, sendMessageSchema, c
 import { z } from "zod";
 import * as signalwire from "./signalwire";
 import { createSmsProvider, NoGatewayProvider, type ISmsProvider } from "./sms-providers";
+import { encryptCredentials } from "./crypto";
 
 function formatToE164(phone: string): string {
   const digits = phone.replace(/\D/g, "");
