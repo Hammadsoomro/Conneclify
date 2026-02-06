@@ -183,17 +183,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     app.set("trust proxy", 1);
   }
 
+  const isReplit = process.env.REPL_ID !== undefined;
+  const isProduction = process.env.NODE_ENV === "production";
+
   const sessionMiddleware = session({
     store: sessionStore,
     secret: sessionSecret || "conneclify-dev-secret-key-2024",
     resave: false,
     saveUninitialized: false,
-    proxy: process.env.NODE_ENV === "production",
+    proxy: isProduction || isReplit,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: isProduction || isReplit,
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      sameSite: isProduction || isReplit ? "none" : "lax",
     },
   });
   
