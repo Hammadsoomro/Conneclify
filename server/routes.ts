@@ -166,11 +166,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     throw new Error("SESSION_SECRET environment variable is required in production");
   }
 
-  // Use PostgreSQL session store for production
-  const PgSession = connectPgSimple(session);
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-  });
+  // Use in-memory store for development, PostgreSQL for production
+  let sessionStore: any;
+
+  if (process.env.NODE_ENV === "production") {
+    // Production: Use PostgreSQL session store
+    const PgSession = connectPgSimple(session);
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+    });
+    sessionStore = new PgSession({
+      pool,
+      tableName: "user_sessions",
+      createTableIfMissing: true,
+    });
+  } else {
+    // Development: Use in-memory store (simplest for testing)
+    const MemoryStore = require("memorystore")(session);
+    sessionStore = new MemoryStore({
+      checkPeriod: 86400000, // 24 hours
+    });
+  }
 
   // Trust proxy in production for secure cookies behind reverse proxy
   if (process.env.NODE_ENV === "production") {
@@ -178,11 +194,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   }
 
   const sessionMiddleware = session({
-    store: new PgSession({
-      pool,
-      tableName: "user_sessions",
-      createTableIfMissing: true,
-    }),
+    store: sessionStore,
     secret: sessionSecret || "conneclify-dev-secret-key-2024",
     resave: false,
     saveUninitialized: false,
