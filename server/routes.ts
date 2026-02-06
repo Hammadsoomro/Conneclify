@@ -178,8 +178,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     createTableIfMissing: true,
   });
 
-  // Trust proxy in production for secure cookies behind reverse proxy
-  if (process.env.NODE_ENV === "production") {
+  // Trust proxy in production and Replit for secure cookies behind reverse proxy
+  if (isProduction || isReplit) {
     app.set("trust proxy", 1);
   }
 
