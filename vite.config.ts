@@ -30,29 +30,7 @@ export default defineConfig({
         target: "http://localhost:5000",
         changeOrigin: true,
         secure: false,
-        ws: true,
-        onProxyRes: (proxyRes, req, res) => {
-          // Ensure Set-Cookie headers are passed through
-          const setCookieHeaders = proxyRes.headers["set-cookie"];
-          if (setCookieHeaders) {
-            // Remove Domain attribute from cookies so they work across origins
-            const modifiedCookies = (Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders]).map(
-              (cookie: string) => {
-                // Remove Domain= part if present
-                return cookie.replace(/;\s*Domain=[^;]*/i, "");
-              }
-            );
-            proxyRes.headers["set-cookie"] = modifiedCookies;
-          }
-        },
       },
     },
-    hmr: process.env.REPL_ID
-      ? {
-          host: process.env.REPLIT_DOMAINS?.split(",")[0] || "localhost",
-          port: 443,
-          protocol: "wss",
-        }
-      : undefined,
   },
 });
