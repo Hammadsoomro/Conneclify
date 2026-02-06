@@ -42,15 +42,6 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         ws: true,
-        onProxyRes: (proxyRes) => {
-          // Allow cookies to be set by removing strict domain requirements
-          const setCookie = proxyRes.headers["set-cookie"];
-          if (setCookie) {
-            proxyRes.headers["set-cookie"] = (Array.isArray(setCookie) ? setCookie : [setCookie]).map(
-              (cookie) => cookie.replace(/Domain=[^;]+;?/i, "")
-            );
-          }
-        },
       },
     },
     hmr: process.env.REPL_ID
