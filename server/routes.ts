@@ -537,12 +537,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (user.role === "admin") {
         return res.status(403).json({ message: "Cannot reset admin password" });
       }
-      
+
       const bcrypt = await import("bcrypt");
-      const hashedPassword = await bcrypt.hash("password123", 10);
+      const { randomBytes } = await import("crypto");
+      const randomPassword = randomBytes(16).toString('hex');
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
       await storage.updateUser(id, { password: hashedPassword });
-      
-      res.json({ message: "Password reset successfully" });
+
+      res.json({
+        message: "Password reset successfully",
+        temporaryPassword: randomPassword,
+        note: "User should change this password on next login"
+      });
     } catch (err) {
       console.error("Reset password error:", err);
       res.status(500).json({ message: "Failed to reset password" });
