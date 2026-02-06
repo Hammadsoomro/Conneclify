@@ -161,8 +161,11 @@ function verifySignalWireSignature(
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
+  const isReplit = process.env.REPL_ID !== undefined;
+  const isProduction = process.env.NODE_ENV === "production";
+
   const sessionSecret = process.env.SESSION_SECRET;
-  if (!sessionSecret && process.env.NODE_ENV === "production") {
+  if (!sessionSecret && isProduction) {
     throw new Error("SESSION_SECRET environment variable is required in production");
   }
 
@@ -182,9 +185,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   if (isProduction || isReplit) {
     app.set("trust proxy", 1);
   }
-
-  const isReplit = process.env.REPL_ID !== undefined;
-  const isProduction = process.env.NODE_ENV === "production";
 
   const sessionMiddleware = session({
     store: sessionStore,
