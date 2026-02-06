@@ -23,6 +23,30 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// CORS headers for Replit and development
+app.use((req, res, next) => {
+  const origin = req.headers.origin || "";
+
+  // Allow requests from Replit domains and localhost
+  if (
+    origin.includes("replit.com") ||
+    origin.includes("builder.codes") ||
+    origin.includes("localhost") ||
+    origin.includes("127.0.0.1")
+  ) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Credentials", "true");
+  }
+
+  res.header("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type,Authorization");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
