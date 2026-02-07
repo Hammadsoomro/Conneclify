@@ -159,44 +159,55 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     throw new Error("SESSION_SECRET environment variable is required in production");
   }
 
-  // Use in-memory store for development, PostgreSQL for production
-  let sessionStore: any;
-  let pool: Pool | null = null;
+let sessionStore: any;
+let pool: Pool | null = null;
 
-  if (isProduction && process.env.DATABASE_URL) {
+if (isProduction && process.env.DATABASE_URL) {
+  const PgSession = connectPgSimple(session);
+  pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  sessionStore = new PgSession({
+    pool,
+    tableName: "user_sessions",
+    createTableIfMissing: true,
+  });
+} else {
+  // Development ke liye bhi DB use karna hai
+  const PgSession = connectPgSimple(session);
+  pool = new Pool({ connectionString: process.env.DATABASE_URL || "postgres://postgres:password@localhost:5432/connectlify_dev" });
+  sessionStore = new PgSession({
+    pool,
+    tableName: "user_sessions",
+    createTableIfMissing: true,
+  });
+}
 
-    const PgSession = connectPgSimple(session);
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const sessionStore = new PgSession({ pool, tableName: "user_sessions", createTableIfMissing: true });
-  }
+
 
   // Trust proxy in production for secure cookies
   if (isProduction) {
     app.set("trust proxy", 1);
   }
 
-  app.use(cors({
-    origin: "http://localhost:5173", // tumhara frontend dev server
-    credentials: true                // 👈 cookies allow karega
-  }));
+app.use(cors({
+  origin: "http://localhost:5173", // tumhara frontend dev server
+  credentials: true
+}));
 
-  const sessionMiddleware = session({
-    store: sessionStore,
-    secret: sessionSecret || "conneclify-dev-secret-key-2024",
-    resave: false,
-    saveUninitialized: true,
-    proxy: isProduction,
-    cookie: {
-      secure: false,              // dev mein false
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
-      sameSite: "none",           // 👈 dev mein none
-    }
-  });
+const sessionMiddleware = session({
+  store: sessionStore,
+  secret: sessionSecret || "conneclify-dev-secret-key-2024",
+  resave: false,
+  saveUninitialized: true,
+  proxy: isProduction,
+  cookie: {
+    secure: false,              // dev mein false
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: "none",           // dev mein none
+  }
+});
 
-  
   app.use(sessionMiddleware);
-
   app.use(passport.initialize());
   app.use(passport.session());
 
