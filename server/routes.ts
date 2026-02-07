@@ -872,39 +872,38 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  app.post("/api/phone-numbers/purchase", requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const { number } = req.body;
-      if (!number) {
-        return res.status(400).json({ message: "Phone number is required" });
+    app.post("/api/phone-numbers/purchase", requireAuth, requireAdmin, async (req, res) => {
+      try {
+        const { number } = req.body;
+        if (!number) {
+          return res.status(400).json({ message: "Phone number is required" });
+        }
+
+        const { provider, adminId, gateway } = await getProviderContext(req.user!.id);
+        if (!provider.isConfigured()) {
+          return res.status(503).json({ message: "No SMS gateway configured. Please connect one in Settings > Integrations." });
+        }
+
+        const purchasedNumber = await provider.purchaseNumber(number);
+
+        const phone = await storage.createPhoneNumber({
+          number: purchasedNumber.number,
+          friendlyName: purchasedNumber.friendlyName || "Purchased Number",
+          providerId: purchasedNumber.id,
+          provider: gateway?.provider || "signalwire",
+          gatewayId: gateway?.id,
+          adminId: adminId!,
+          capabilities: ["sms", "voice", "mms"],
+          isActive: true,
+          monthlyRate: "$1.15",
+        });
+
+        res.json(phone);
+      } catch (err: any) {
+        console.error("Purchase number error:", err);
+        res.status(500).json({ message: err.message || "Failed to purchase number" });
       }
-
-      const { provider, adminId, gateway } = await getProviderContext(req.user!.id);
-      if (!provider.isConfigured()) {
-        return res.status(503).json({ message: "No SMS gateway configured. Please connect one in Settings > Integrations." });
-      }
-
-      const purchasedNumber = await provider.purchaseNumber(number);
-
-      const phone = await storage.createPhoneNumber({
-        number: purchasedNumber.number,
-        friendlyName: purchasedNumber.friendlyName || "Purchased Number",
-        providerId: purchasedNumber.id,
-        provider: gateway?.provider || "signalwire",
-        gatewayId: gateway?.id,
-        adminId: adminId!,
-        capabilities: ["sms", "voice", "mms"],
-        isActive: true,
-        monthlyRate: "$1.15",
-      });
-
-      res.json(phone);
-    } catch (err: any) {
-      console.error("Purchase number error:", err);
-      res.status(500).json({ message: err.message || "Failed to purchase number" });
-    }
-  });
-
+    });
   app.get("/api/conversations", requireAuth, async (req, res) => {
     try {
       const user = req.user!;
