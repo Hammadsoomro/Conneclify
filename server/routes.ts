@@ -904,6 +904,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         res.status(500).json({ message: err.message || "Failed to purchase number" });
       }
     });
+    
   app.get("/api/conversations", requireAuth, async (req, res) => {
     try {
       const user = req.user!;
