@@ -89,40 +89,30 @@ declare global {
 const clients = new Map<string, Set<WebSocket>>();
 const userClients = new Map<string, Set<WebSocket>>();
 
-function broadcastToConversation(conversationId: string, data: any) {
-  const wsClients = clients.get(conversationId);
-  if (wsClients) {
-    const message = JSON.stringify(data);
-    wsClients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
+function broadcast(wsClients: Set<WebSocket> | undefined, data: any) {
+  if (!wsClients) return;
+  const message = JSON.stringify(data);
+  wsClients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      try {
         client.send(message);
+      } catch (err) {
+        console.error("WebSocket send failed:", err);
       }
-    });
-  }
+    }
+  });
+}
+
+function broadcastToConversation(conversationId: string, data: any) {
+  broadcast(clients.get(conversationId), data);
 }
 
 function broadcastToUser(userId: string, data: any) {
-  const wsClients = userClients.get(userId);
-  if (wsClients) {
-    const message = JSON.stringify(data);
-    wsClients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  }
+  broadcast(userClients.get(userId), data);
 }
 
 function broadcastToAdmin(adminId: string, data: any) {
-  const message = JSON.stringify(data);
-  const adminClients = userClients.get(adminId);
-  if (adminClients) {
-    adminClients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  }
+  broadcast(userClients.get(adminId), data);
 }
 
 // Webhook signature verification functions
@@ -202,12 +192,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     saveUninitialized: true,
     proxy: isProduction,
     cookie: {
-      secure: isProduction,
+      secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: "lax",
-      path: "/",
-    },
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    }
+
   });
   
   app.use(sessionMiddleware);
@@ -278,13 +268,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   );
 
   passport.serializeUser((user: Express.User, done) => {
-    done(null, JSON.stringify(user));
+    done(null, user.id); // ✅ correct
   });
 
-  passport.deserializeUser((userData: string, done) => {
+  passport.deserializeUser(async (id: string, done) => {
     try {
-      const user = JSON.parse(userData);
-      done(null, user);
+      const user = await storage.getUser(id);
+      if (user) {
+        done(null, user);
+      } else {
+        done(null, false);
+      }
     } catch (err) {
       done(err);
     }
