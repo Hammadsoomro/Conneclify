@@ -1,3 +1,4 @@
+import cors from "cors";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -174,6 +175,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     app.set("trust proxy", 1);
   }
 
+  app.use(cors({
+    origin: "http://localhost:5173", // tumhara frontend dev server
+    credentials: true                // 👈 cookies allow karega
+  }));
+
   const sessionMiddleware = session({
     store: sessionStore,
     secret: sessionSecret || "conneclify-dev-secret-key-2024",
@@ -181,13 +187,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     saveUninitialized: true,
     proxy: isProduction,
     cookie: {
-      secure: false,              // 👈 dev mein false
+      secure: false,              // dev mein false
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
       sameSite: "none",           // 👈 dev mein none
     }
   });
-
 
   
   app.use(sessionMiddleware);
