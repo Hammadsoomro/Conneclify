@@ -168,7 +168,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const PgSession = connectPgSimple(session);
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const sessionStore = new PgSession({ pool, tableName: "user_sessions", createTableIfMissing: true });
-
   }
 
   // Trust proxy in production for secure cookies
@@ -322,21 +321,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           isActive: true,
         });
       } catch (dbErr) {
-        // Fallback to mock user in development when database is unavailable
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("Database unavailable, creating mock user for development");
-          isUsingMockData = true;
-          user = {
-            id: `mock-${Date.now()}`,
-            username: data.username,
-            email: data.email,
-            fullName: data.fullName,
-            role: "admin",
-            isActive: true,
-          };
-        } else {
-          throw dbErr;
-        }
       }
 
       const sessionUser = {
