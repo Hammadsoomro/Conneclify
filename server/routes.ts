@@ -164,21 +164,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   let pool: Pool | null = null;
 
   if (isProduction && process.env.DATABASE_URL) {
+
     const PgSession = connectPgSimple(session);
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL || "postgres://postgres:password@localhost:5432/connectlify_dev",
     });
 
-    sessionStore = new PgSession({
+    const sessionStore = new PgSession({
       pool,
       tableName: "user_sessions",
       createTableIfMissing: true,
     });
-  } else {
-    // Use memory store for development
-    const MemStoreClass = MemoryStore(session);
-    sessionStore = new MemStoreClass();
-  }
+
 
   // Trust proxy in production for secure cookies
   if (isProduction) {
@@ -231,78 +228,71 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   };
 
-  passport.use(
-    new LocalStrategy(async (username, password, done) => {
-      try {
-        const user = await storage.getUserByUsername(username);
-        if (!user) {
-          return done(null, false, { message: "Invalid username or password" });
-        }
-        if (!user.isActive) {
-          return done(null, false, { message: "Account is inactive" });
-        }
-        const isValid = await bcrypt.compare(password, user.password);
-        if (!isValid) {
-          return done(null, false, { message: "Invalid username or password" });
-        }
-        return done(null, {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          fullName: user.fullName,
-          role: user.role,
-          isActive: user.isActive,
-        });
-      } catch (err) {
-        // Fallback to mock users in development when database is unavailable
-        if (process.env.NODE_ENV !== "production") {
-          const mockUser = mockUsers[username];
-          if (mockUser && password === mockUser.password) {
-            return done(null, mockUser.user);
+    passport.use(
+      new LocalStrategy(async (username, password, done) => {
+        try {
+          const user = await storage.getUserByUsername(username);
+          if (!user) {
+            return done(null, false, { message: "Invalid username or password" });
           }
+          if (!user.isActive) {
+            return done(null, false, { message: "Account is inactive" });
+          }
+          const isValid = await bcrypt.compare(password, user.password);
+          if (!isValid) {
+            return done(null, false, { message: "Invalid username or password" });
+          }
+          return done(null, {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            fullName: user.fullName,
+            role: user.role,
+            isActive: user.isActive,
+          });
+        } catch (err) {
+          console.error("Login auth error:", err);
+          return done(null, false, { message: "Authentication failed" });
         }
-        console.error("Login auth error:", err);
-        return done(null, false, { message: "Authentication failed" });
-      }
-    })
-  );
+      })
+    );
 
-  passport.serializeUser((user: Express.User, done) => {
-    done(null, user.id); // ✅ correct
-  });
-
-  passport.deserializeUser(async (id: string, done) => {
-    try {
-      const user = await storage.getUser(id);
-      if (user) {
-        done(null, user);
-      } else {
-        done(null, false);
-      }
-    } catch (err) {
-      done(err);
-    }
-  });
-
-  const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-    console.log("Auth check:", {
-      isAuthenticated: req.isAuthenticated(),
-      sessionID: req.sessionID,
-      userId: req.user?.id,
-      hasUser: !!req.user,
+    passport.serializeUser((user: Express.User, done) => {
+      done(null, user.id); // ✅ correct
     });
-    if (req.isAuthenticated()) {
-      return next();
-    }
-    res.status(401).json({ message: "Unauthorized" });
-  };
 
-  const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
-    if (req.isAuthenticated() && req.user?.role === "admin") {
-      return next();
-    }
-    res.status(403).json({ message: "Forbidden - Admin access required" });
-  };
+    passport.deserializeUser(async (id: string, done) => {
+      try {
+        const user = await storage.getUser(id);
+        if (user) {
+          done(null, user);
+        } else {
+          done(null, false);
+        }
+      } catch (err) {
+        done(err);
+      }
+    });
+
+    const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+      console.log("Auth check:", {
+        isAuthenticated: req.isAuthenticated(),
+        sessionID: req.sessionID,
+        userId: req.user?.id,
+        hasUser: !!req.user,
+      });
+      if (req.isAuthenticated()) {
+        return next();
+      }
+      res.status(401).json({ message: "Unauthorized" });
+    };
+
+    const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+      if (req.isAuthenticated() && req.user?.role === "admin") {
+        return next();
+      }
+      res.status(403).json({ message: "Forbidden - Admin access required" });
+    };
 
   app.post("/api/auth/login", (req, res, next) => {
     try {
