@@ -182,13 +182,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     saveUninitialized: true,
     proxy: isProduction,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: false,              // 👈 dev mein false
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      sameSite: "none",           // 👈 dev mein none
     }
-
   });
+
+
   
   app.use(sessionMiddleware);
 
