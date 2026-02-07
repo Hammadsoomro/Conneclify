@@ -166,16 +166,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   if (isProduction && process.env.DATABASE_URL) {
 
     const PgSession = connectPgSimple(session);
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL || "postgres://postgres:password@localhost:5432/connectlify_dev",
-    });
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const sessionStore = new PgSession({ pool, tableName: "user_sessions", createTableIfMissing: true });
 
-    const sessionStore = new PgSession({
-      pool,
-      tableName: "user_sessions",
-      createTableIfMissing: true,
-    });
-
+  };
 
   // Trust proxy in production for secure cookies
   if (isProduction) {
@@ -1763,6 +1757,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
       if (authenticatedUserId) {
         userClients.get(authenticatedUserId)?.delete(ws);
+        console.log(`WebSocket disconnected for user ${authenticatedUserId || "unknown"}`);
       }
     });
   });
