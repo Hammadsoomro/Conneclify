@@ -169,7 +169,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const sessionStore = new PgSession({ pool, tableName: "user_sessions", createTableIfMissing: true });
 
-  };
+  }
 
   // Trust proxy in production for secure cookies
   if (isProduction) {
