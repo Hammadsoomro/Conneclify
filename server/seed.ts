@@ -3,9 +3,13 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { users, phoneNumbers } from "@shared/schema";
 import { sql } from "drizzle-orm";
+import { pool } from "./db";
 
 export async function seedDatabase() {
   try {
+    // Create session table if it doesn't exist
+    await createSessionTable();
+
     const [existingUsers] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
     if (existingUsers && existingUsers.count > 0) {
       console.log("Database already seeded, skipping...");
