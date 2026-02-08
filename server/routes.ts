@@ -242,13 +242,17 @@ const sessionMiddleware = session({
 
     passport.deserializeUser(async (id: string, done) => {
       try {
+        console.log("Deserializing user with ID:", id);
         const user = await storage.getUser(id);
         if (user) {
+          console.log("User deserialized successfully:", user.username);
           done(null, user);
         } else {
+          console.log("User not found for ID:", id);
           done(null, false);
         }
       } catch (err) {
+        console.error("Deserialize error:", err);
         done(null);
       }
     });
