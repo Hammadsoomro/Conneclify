@@ -172,14 +172,8 @@ if (isProduction && process.env.DATABASE_URL) {
     createTableIfMissing: true,
   });
 } else {
-  // Development ke liye bhi DB use karna hai
-  const PgSession = connectPgSimple(session);
-  pool = new Pool({ connectionString: process.env.DATABASE_URL  });
-  sessionStore = new PgSession({
-    pool,
-    tableName: "user_sessions",
-    createTableIfMissing: true,
-  });
+  // Development: use in-memory session store
+  sessionStore = new session.MemoryStore();
 }
 
 
