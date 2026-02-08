@@ -295,9 +295,16 @@ const sessionMiddleware = session({
           console.error("Login error:", loginErr);
           return next(loginErr);
         }
-        console.log("User logged in successfully:", user.id);
-        console.log("Session ID:", req.sessionID);
-        return res.json({ user });
+        // Save session to database explicitly
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Session save error:", saveErr);
+            return next(saveErr);
+          }
+          console.log("User logged in successfully:", user.id);
+          console.log("Session ID:", req.sessionID);
+          return res.json({ user });
+        });
       });
     })(req, res, next);
   });
