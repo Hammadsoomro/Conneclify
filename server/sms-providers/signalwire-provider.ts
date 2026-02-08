@@ -218,42 +218,44 @@ export class SignalWireProvider implements ISmsProvider {
       throw new Error("SignalWire is not configured");
     }
 
-    const bodyParams: Record<string, string> = {
-      To: params.to,
-      From: params.from,
-      Body: params.body,
-    };
+    return retryWithBackoff(async () => {
+      const bodyParams: Record<string, string> = {
+        To: params.to,
+        From: params.from,
+        Body: params.body,
+      };
 
-    // Add status callback URL if provided
-    if (params.statusCallback) {
-      bodyParams.StatusCallback = params.statusCallback;
-    }
-
-    const response = await fetch(
-      `${this.baseUrl}/Messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: this.getAuthHeader(),
-          Accept: "application/json",
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams(bodyParams),
+      // Add status callback URL if provided
+      if (params.statusCallback) {
+        bodyParams.StatusCallback = params.statusCallback;
       }
-    );
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to send SMS");
-    }
+      const response = await fetch(
+        `${this.baseUrl}/Messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: this.getAuthHeader(),
+            Accept: "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams(bodyParams),
+        }
+      );
 
-    const data = await response.json();
-    return {
-      id: data.sid,
-      status: data.status,
-      to: data.to,
-      from: data.from,
-      body: data.body,
-    };
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to send SMS");
+      }
+
+      const data = await response.json();
+      return {
+        id: data.sid,
+        status: data.status,
+        to: data.to,
+        from: data.from,
+        body: data.body,
+      };
+    });
   }
 }
