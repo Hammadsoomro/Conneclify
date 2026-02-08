@@ -173,7 +173,7 @@ if (isProduction && process.env.DATABASE_URL) {
 } else {
   // Development ke liye bhi DB use karna hai
   const PgSession = connectPgSimple(session);
-  pool = new Pool({ connectionString: process.env.DATABASE_URL || "postgres://postgres:password@localhost:5432/connectlify_dev" });
+  pool = new Pool({ connectionString: process.env.DATABASE_URL  });
   sessionStore = new PgSession({
     pool,
     tableName: "user_sessions",
