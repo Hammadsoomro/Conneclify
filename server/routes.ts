@@ -1732,5 +1732,16 @@ const sessionMiddleware = session({
     });
   });
 
+  // Gracefully close session pool on process exit
+  process.on("SIGINT", async () => {
+    console.log("Closing database connections...");
+    if (sessionPool) {
+      await sessionPool.end().catch((err) => {
+        console.error("Error closing session pool:", err);
+      });
+    }
+    process.exit(0);
+  });
+
   return httpServer;
 }
