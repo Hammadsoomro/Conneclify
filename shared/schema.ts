@@ -19,7 +19,7 @@ export const users = pgTable("users", {
   theme: text("theme").default("default"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  createdBy: varchar("created_by"),
+  createdBy: varchar("created_by").references(() => users.id),
 });
 
 export const usersRelations = relations(users, ({ many }) => ({
