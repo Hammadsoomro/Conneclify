@@ -161,20 +161,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   }
 
 let sessionStore: any;
-let pool: Pool | null = null;
+let sessionPool: Pool | null = null;
 
-if (process.env.DATABASE_URL) {
-  const PgSession = connectPgSimple(session);
-  pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  sessionStore = new PgSession({
-    pool,
-    tableName: "user_sessions",
-    createTableIfMissing: true,
-  });
-} else {
-  // Fallback: use in-memory session store if no database URL
-  sessionStore = new session.MemoryStore();
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is required for session storage");
 }
+
+const PgSession = connectPgSimple(session);
+sessionPool = new Pool({ connectionString: process.env.DATABASE_URL });
+sessionStore = new PgSession({
+  pool: sessionPool,
+  tableName: "user_sessions",
+  createTableIfMissing: true,
+});
 
 
 
