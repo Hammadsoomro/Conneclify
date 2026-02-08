@@ -183,32 +183,34 @@ export class SignalWireProvider implements ISmsProvider {
       throw new Error("SignalWire is not configured");
     }
 
-    const response = await fetch(
-      `${this.baseUrl}/IncomingPhoneNumbers`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: this.getAuthHeader(),
-          Accept: "application/json",
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          PhoneNumber: number,
-        }),
+    return retryWithBackoff(async () => {
+      const response = await fetch(
+        `${this.baseUrl}/IncomingPhoneNumbers`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: this.getAuthHeader(),
+            Accept: "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            PhoneNumber: number,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to purchase number");
       }
-    );
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to purchase number");
-    }
-
-    const data = await response.json();
-    return {
-      id: data.sid,
-      number: data.phone_number,
-      friendlyName: data.friendly_name,
-    };
+      const data = await response.json();
+      return {
+        id: data.sid,
+        number: data.phone_number,
+        friendlyName: data.friendly_name,
+      };
+    });
   }
 
   async sendSms(params: SendSmsParams): Promise<SmsResult> {
