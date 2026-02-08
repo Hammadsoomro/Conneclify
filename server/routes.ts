@@ -190,7 +190,7 @@ if (isProduction && process.env.DATABASE_URL) {
   }
 
 app.use(cors({
-  origin: "http://localhost:5173", // tumhara frontend dev server
+  origin: "http://localhost:8080", // Vite dev server port
   credentials: true
 }));
 
