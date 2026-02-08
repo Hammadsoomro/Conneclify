@@ -194,10 +194,10 @@ const sessionMiddleware = session({
   saveUninitialized: true,
   proxy: isProduction,
   cookie: {
-    secure: false,              // dev mein false
+    secure: isProduction,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000,
-    sameSite: "none",           // dev mein none
+    sameSite: isProduction ? "lax" : "lax",
   }
 });
 
