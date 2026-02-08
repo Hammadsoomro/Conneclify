@@ -14,6 +14,7 @@ import { loginSchema, signupSchema, createTeamMemberSchema, sendMessageSchema, c
 import { z } from "zod";
 import { createSmsProvider, NoGatewayProvider, type ISmsProvider } from "./sms-providers";
 import { encryptCredentials } from "./crypto";
+import cors from "cors";
 
 function formatToE164(phone: string): string {
   const digits = phone.replace(/\D/g, "");
