@@ -163,7 +163,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 let sessionStore: any;
 let pool: Pool | null = null;
 
-if (isProduction && process.env.DATABASE_URL) {
+if (process.env.DATABASE_URL) {
   const PgSession = connectPgSimple(session);
   pool = new Pool({ connectionString: process.env.DATABASE_URL });
   sessionStore = new PgSession({
@@ -172,7 +172,7 @@ if (isProduction && process.env.DATABASE_URL) {
     createTableIfMissing: true,
   });
 } else {
-  // Development: use in-memory session store
+  // Fallback: use in-memory session store if no database URL
   sessionStore = new session.MemoryStore();
 }
 
