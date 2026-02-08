@@ -96,3 +96,25 @@ export async function seedDatabase() {
     console.error("Error seeding database:", error);
   }
 }
+
+async function createSessionTable() {
+  try {
+    const createTableSQL = `
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        sid varchar NOT NULL COLLATE "default",
+        sess json NOT NULL,
+        expire timestamp(6) NOT NULL,
+        PRIMARY KEY (sid)
+      );
+
+      CREATE INDEX IF NOT EXISTS IDX_user_sessions_expire
+      ON user_sessions (expire);
+    `;
+
+    await pool.query(createTableSQL);
+    console.log("Session table created/verified");
+  } catch (error) {
+    console.error("Error creating session table:", error);
+    throw error;
+  }
+}
