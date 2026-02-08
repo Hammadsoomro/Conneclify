@@ -152,28 +152,30 @@ export class SignalWireProvider implements ISmsProvider {
       throw new Error("SignalWire is not configured");
     }
 
-    const response = await fetch(
-      `${this.baseUrl}/IncomingPhoneNumbers`,
-      {
-        headers: {
-          Authorization: this.getAuthHeader(),
-          Accept: "application/json",
-        },
+    return retryWithBackoff(async () => {
+      const response = await fetch(
+        `${this.baseUrl}/IncomingPhoneNumbers`,
+        {
+          headers: {
+            Authorization: this.getAuthHeader(),
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to fetch owned numbers");
       }
-    );
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to fetch owned numbers");
-    }
-
-    const data = await response.json();
-    return (data.incoming_phone_numbers || []).map((num: any) => ({
-      id: num.sid,
-      number: num.phone_number,
-      friendlyName: num.friendly_name,
-      capabilities: ["sms", "voice"],
-    }));
+      const data = await response.json();
+      return (data.incoming_phone_numbers || []).map((num: any) => ({
+        id: num.sid,
+        number: num.phone_number,
+        friendlyName: num.friendly_name,
+        capabilities: ["sms", "voice"],
+      }));
+    });
   }
 
   async purchaseNumber(number: string): Promise<PurchasedNumber> {
