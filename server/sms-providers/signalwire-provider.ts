@@ -100,48 +100,50 @@ export class SignalWireProvider implements ISmsProvider {
       throw new Error("SignalWire is not configured");
     }
 
-    const params = new URLSearchParams({
-      PageSize: "50",
-    });
-    if (searchParams?.areaCode) {
-      params.append("AreaCode", searchParams.areaCode);
-    }
-    if (searchParams?.region) {
-      params.append("InRegion", searchParams.region);
-    }
-
-    const country = searchParams?.country || "US";
-    const response = await fetch(
-      `${this.baseUrl}/AvailablePhoneNumbers/${country}/Local?${params}`,
-      {
-        headers: {
-          Authorization: this.getAuthHeader(),
-          Accept: "application/json",
-        },
+    return retryWithBackoff(async () => {
+      const params = new URLSearchParams({
+        PageSize: "50",
+      });
+      if (searchParams?.areaCode) {
+        params.append("AreaCode", searchParams.areaCode);
       }
-    );
+      if (searchParams?.region) {
+        params.append("InRegion", searchParams.region);
+      }
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to fetch available numbers");
-    }
+      const country = searchParams?.country || "US";
+      const response = await fetch(
+        `${this.baseUrl}/AvailablePhoneNumbers/${country}/Local?${params}`,
+        {
+          headers: {
+            Authorization: this.getAuthHeader(),
+            Accept: "application/json",
+          },
+        }
+      );
 
-    const data = await response.json();
-    return (data.available_phone_numbers || []).map((num: any) => {
-      // Parse capabilities from API response object {voice: true, SMS: true, MMS: true}
-      const caps: string[] = [];
-      if (num.capabilities?.voice) caps.push("voice");
-      if (num.capabilities?.SMS) caps.push("sms");
-      if (num.capabilities?.MMS) caps.push("mms");
-      
-      return {
-        number: num.phone_number,
-        friendlyName: num.friendly_name,
-        region: num.region,
-        city: num.rate_center || num.locality || "",
-        capabilities: caps.length > 0 ? caps : ["sms", "voice"],
-        monthlyRate: "$1.15",
-      };
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to fetch available numbers");
+      }
+
+      const data = await response.json();
+      return (data.available_phone_numbers || []).map((num: any) => {
+        // Parse capabilities from API response object {voice: true, SMS: true, MMS: true}
+        const caps: string[] = [];
+        if (num.capabilities?.voice) caps.push("voice");
+        if (num.capabilities?.SMS) caps.push("sms");
+        if (num.capabilities?.MMS) caps.push("mms");
+
+        return {
+          number: num.phone_number,
+          friendlyName: num.friendly_name,
+          region: num.region,
+          city: num.rate_center || num.locality || "",
+          capabilities: caps.length > 0 ? caps : ["sms", "voice"],
+          monthlyRate: "$1.15",
+        };
+      });
     });
   }
 
