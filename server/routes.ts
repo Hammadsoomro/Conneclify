@@ -256,7 +256,7 @@ const sessionMiddleware = session({
           done(null, false);
         }
       } catch (err) {
-        done(err);
+        done(null);
       }
     });
 
