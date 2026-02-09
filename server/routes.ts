@@ -270,12 +270,13 @@ const sessionMiddleware = session({
       res.status(401).json({ message: "Unauthorized" });
     };
 
-    const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
-      if (req.isAuthenticated() && req.user?.role === "admin") {
-        return next();
-      }
-      res.status(403).json({ message: "Forbidden - Admin access required" });
-    };
+  const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+    if (req.isAuthenticated() && req.user?.role === "admin") {
+      return next();
+    }
+    return res.status(403).json({ message: "Admins only" });
+  };
+
 
   app.post("/api/auth/login", (req, res, next) => {
     try {
@@ -1224,29 +1225,7 @@ const sessionMiddleware = session({
       
       const validated = connectGatewaySchema.parse(req.body);
       
-      // Test credentials before saving - create a temporary provider
-      const tempGateway = {
-        id: "temp",
-        adminId: req.user.id,
-        provider: validated.provider as SmsProvider,
-        name: validated.name,
-        credentials: validated.credentials as unknown as string,
-        isActive: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      
-      const tempProvider = createSmsProvider(tempGateway);
-      const testResult = await tempProvider.testConnection();
-      
-      if (!testResult.success) {
-        console.error("Gateway connection test failed:", testResult.error);
-        return res.status(400).json({ 
-          message: "Connection failed", 
-          error: testResult.error || "Please check your credentials and try again."
-        });
-      }
-      
+     
       // Check if this is the first gateway for this admin
       const existingGateways = await storage.getSmsGateways(req.user.id);
       const isFirstGateway = existingGateways.length === 0;
