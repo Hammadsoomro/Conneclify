@@ -163,17 +163,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 let sessionStore: any;
 let sessionPool: Pool | null = null;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required for session storage");
+// Create session store with memory fallback if database is unavailable
+try {
+  if (!process.env.DATABASE_URL) {
+    console.warn("DATABASE_URL not set, using memory store for sessions");
+    sessionStore = new session.MemoryStore();
+  } else {
+    const PgSession = connectPgSimple(session);
+    sessionPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      connectionTimeoutMillis: 5000,
+      idleTimeoutMillis: 30000,
+    });
+    sessionStore = new PgSession({
+      pool: sessionPool,
+      tableName: "user_sessions",
+      createTableIfMissing: true,
+    });
+    console.log("PostgreSQL session store configured");
+  }
+} catch (err) {
+  console.warn("Failed to configure PostgreSQL session store, falling back to memory:", err);
+  sessionStore = new session.MemoryStore();
 }
-
-const PgSession = connectPgSimple(session);
-sessionPool = new Pool({ connectionString: process.env.DATABASE_URL });
-sessionStore = new PgSession({
-  pool: sessionPool,
-  tableName: "user_sessions",
-  createTableIfMissing: true,
-});
 
 
 

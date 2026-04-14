@@ -10,6 +10,7 @@ export async function seedDatabase() {
     // Create session table if it doesn't exist
     await createSessionTable();
 
+    console.log("Checking if database needs seeding...");
     const [existingUsers] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
     if (existingUsers && existingUsers.count > 0) {
       console.log("Database already seeded, skipping...");
@@ -112,9 +113,9 @@ async function createSessionTable() {
     `;
 
     await pool.query(createTableSQL);
-    console.log("Session table created/verified");
+    console.log("✅ Session table created/verified");
   } catch (error) {
-    console.error("Error creating session table:", error);
-    throw error;
+    console.warn("⚠️ Could not create session table (database may be unavailable):", (error as any).message);
+    // Don't throw - allow app to continue with memory sessions
   }
 }
