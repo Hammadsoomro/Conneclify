@@ -13,16 +13,6 @@ declare module "http" {
   }
 }
 
-app.use(
-  express.json({
-    verify: (req, _res, buf) => {
-      req.rawBody = buf;
-    },
-  }),
-);
-
-app.use(express.urlencoded({ extended: false }));
-
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -33,6 +23,22 @@ export function log(message: string, source = "express") {
 
   console.log(`${formattedTime} [${source}] ${message}`);
 }
+
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+);
+
+app.use(express.urlencoded({ extended: false }));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  log(`${req.method} ${req.path} (incoming)`);
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -61,8 +67,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Health check endpoint
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   await registerRoutes(httpServer, app);
-  
+
   await seedDatabase();
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
