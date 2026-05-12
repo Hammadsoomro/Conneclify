@@ -4,9 +4,12 @@ import * as schema from "@shared/schema";
 
 const { Pool } = pg;
 
-const DATABASE_URL = process.env.DATABASE_URL ||
-  process.env.SUPABASE_DIRECT_URL ||
-  process.env.SUPABASE_CONNECTION_STRING;
+// Prioritize Supabase-specific vars over generic DATABASE_URL
+// (system-level DATABASE_URL may point to a different database)
+const DATABASE_URL = process.env.SUPABASE_DIRECT_URL ||
+  process.env.SUPABASE_CONNECTION_STRING ||
+  process.env.APP_DATABASE_URL ||
+  process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
   throw new Error(

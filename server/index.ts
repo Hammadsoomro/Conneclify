@@ -64,41 +64,37 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Register routes and seed database
-  await registerRoutes(httpServer, app);
+  const port = parseInt(process.env.PORT || "3000", 10);
+  const isDev = process.env.NODE_ENV !== "production";
 
-  // Try to seed database, but don't fail if it doesn't work
-  seedDatabase().catch((err) => {
-    console.error("Database seeding failed (continuing without seeded data):", err.message);
-  });
+  // In development, run single process (no clustering) to avoid Vite conflicts
+  if (isDev) {
+    await registerRoutes(httpServer, app);
 
-  // Error handling middleware
-  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    seedDatabase().catch((err) => {
+      console.error("Database seeding failed:", err.message);
+    });
 
-    console.error("Internal Server Error:", err);
+    app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      if (res.headersSent) return next(err);
+      return res.status(status).json({ message });
+    });
 
-    if (res.headersSent) {
-      return next(err);
-    }
-
-    return res.status(status).json({ message });
-  });
-
-  // Static serving in production, Vite dev server in development
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  } else {
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
+
+    httpServer.listen(port, "0.0.0.0", () => {
+      log(`Server listening on port ${port}`);
+    });
+
+    return;
   }
 
-  // Cluster setup
-  const port = parseInt(process.env.PORT || "3000", 10);
-  const numCPUs = os.cpus().length;
-
+  // Production: use clustering
   if (cluster.isPrimary) {
+    const numCPUs = os.cpus().length;
     for (let i = 0; i < numCPUs; i++) {
       cluster.fork();
     }
@@ -112,6 +108,19 @@ app.use((req, res, next) => {
       cluster.fork();
     });
   } else {
-    // Workers handle requests automatically via shared server socket
+    await registerRoutes(httpServer, app);
+
+    seedDatabase().catch((err) => {
+      console.error("Database seeding failed:", err.message);
+    });
+
+    app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      if (res.headersSent) return next(err);
+      return res.status(status).json({ message });
+    });
+
+    serveStatic(app);
   }
 })();
